@@ -1,5 +1,14 @@
 package sockyProxy;
+
 import javax.swing.JPopupMenu;
+
+import burp.api.montoya.http.Http;
+import burp.api.montoya.http.handler.*;
+import burp.api.montoya.http.HttpService;
+import burp.api.montoya.http.message.requests.*;
+import burp.api.montoya.http.message.requests.HttpRequest.*;
+import burp.api.montoya.scanner.*;
+import burp.api.montoya.core.ByteArray;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
@@ -17,6 +26,7 @@ import javax.swing.event.AncestorListener;
 import javax.swing.table.AbstractTableModel;
 
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.core.ByteArray;
 
 import javax.swing.JMenuBar;
 import javax.swing.JTextField;
@@ -24,8 +34,12 @@ import javax.swing.JLabel;
 import javax.swing.JButton;
 import sockyProxy.Data.*;
 import sockyProxy.GUI.sockyTableModel;
+import sockyProxy.Utils.*;
+
+import javax.swing.ImageIcon;
 
 public class GUI extends JPanel implements ActionListener, AncestorListener {
+	private static final long serialVersionUID = 1L;
 	public JTextField tbPort;
 	public JTextField tbWebsocketURL;
 	public MontoyaApi api;
@@ -60,6 +74,7 @@ public class GUI extends JPanel implements ActionListener, AncestorListener {
 		pnlProxyServer.add(tbPort);
 		
 		tbWebsocketURL = new JTextField();
+		tbWebsocketURL.setText("ws://localhost");
 		tbWebsocketURL.setColumns(10);
 		tbWebsocketURL.setBounds(143, 34, 230, 26);
 		pnlProxyServer.add(tbWebsocketURL);
@@ -73,25 +88,31 @@ public class GUI extends JPanel implements ActionListener, AncestorListener {
 		pnlProxyServer.add(lblNewLabel);
 		
 		JButton btnStartProxy = new JButton("Start Websocket Proxy");
+		btnStartProxy.setIcon(new ImageIcon("/Users/pac/Downloads/rocket.png"));
 		btnStartProxy.setBounds(64, 85, 268, 29);
 		pnlProxyServer.add(btnStartProxy);
 		
 		JButton btnStopProxy = new JButton("Stop Websocket Proxy");
+		btnStopProxy.setIcon(new ImageIcon("/Users/pac/Downloads/stop.png"));
 		btnStopProxy.setBounds(64, 128, 268, 29);
 		pnlProxyServer.add(btnStopProxy);
-		btnStartProxy.setEnabled(false);
 		btnStartProxy.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
-        		Utils.LaunchProxy(tbPort.getText(), tbWebsocketURL.getText());
+        		Utils.LaunchProxy(api, tbPort.getText(), tbWebsocketURL.getText());
         		btnStopProxy.setEnabled(true);
         		btnStartProxy.setEnabled(false);
         	}
         });
         btnStopProxy.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
-        		Utils.ProcessLauncher.process.destroy();
-        		btnStopProxy.setEnabled(false);
-        		btnStartProxy.setEnabled(true);
+        		
+        		if (Utils.ProcessLauncher.process != null) {
+        			api.logging().logToOutput("Websocket Proxy Server Stopped");
+        			Utils.ProcessLauncher.process.destroy();
+        			btnStopProxy.setEnabled(false);
+        			btnStartProxy.setEnabled(true);
+        			
+        		}
         	}
         });
 		
@@ -111,18 +132,30 @@ public class GUI extends JPanel implements ActionListener, AncestorListener {
 	    item.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
         		api.logging().logToOutput("Menu Click: " + e.getActionCommand() + "\n");
+        		String val = (String) table.getModel().getValueAt(table.getSelectedRow(), 0);
+        		String req = "POST / HTTP/1.1\nHost: 127.0.0.1:"+tbPort.getText()+"\nAccept: application/json\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.127 Safari/537.36\nContent-Length: 0\n\n"+val+"\n\n";  
+        		HttpService service = HttpService.httpService("127.0.0.1", Integer.parseInt(tbPort.getText()), false);
+        		HttpRequest httpreq = HttpRequest.httpRequest(service,  req.toString());
+        		api.intruder().sendToIntruder(httpreq);
         	}
         });
 	    JMenuItem itmScan = new JMenuItem("Send to Scanner");
 	    itmScan.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
         		api.logging().logToOutput("Menu Click: " + e.getActionCommand() + "\n");
+        		//AuditConfiguration audit = new AuditConfiguration();
+        		//api.scanner().startAudit();
         	}
         });
 	    JMenuItem itmDecode = new JMenuItem("Send to Decoder");
 	    itmDecode.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
         		api.logging().logToOutput("Menu Click: " + e.getActionCommand() + "\n");
+        		String val = (String) table.getModel().getValueAt(table.getSelectedRow(), 0);
+        		api.logging().logToOutput(val);
+        		burp.api.montoya.core.ByteArray ba = null;
+        		ba.setBytes(0, val.getBytes());
+        		api.decoder().sendToDecoder(ba);
         	}
         });
         ctxMenu.add(item);
@@ -135,6 +168,19 @@ public class GUI extends JPanel implements ActionListener, AncestorListener {
         pnlInventory.add(table);
 
 	}
+	
+	 public class SendRequest implements Runnable {
+		    private HttpRequest request;
+		    public SendRequest(HttpRequest req) {
+		        this.request = req;
+		    }
+
+		    public void run() {
+		    	api.http().sendRequest(this.request);
+		    	api.logging().logToOutput("Request sent: " + this.request.url());
+		    }
+
+		}
 	
 	public class sockyTableModel extends AbstractTableModel {
 		 private static final long serialVersionUID = 1L;

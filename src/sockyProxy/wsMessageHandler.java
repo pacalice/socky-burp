@@ -26,7 +26,7 @@ public class wsMessageHandler implements MessageHandler {
 
         //    return TextMessageAction.continueWith(base64EncodedPayload);
         //}
-        if (textMessage.direction() == Direction.SERVER_TO_CLIENT) {
+        if (textMessage.direction() == Direction.CLIENT_TO_SERVER) {
 	        logging.logToOutput(textMessage.payload());
 	        wSocketMessage wsm = new wSocketMessage();
 	        wsm.setMessage(textMessage);

@@ -1,5 +1,5 @@
 package sockyProxy;
-
+import burp.api.montoya.http.message.requests.*;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -80,7 +80,6 @@ public final class Utils {
             		"        await asyncio.sleep(3600)\n" +
             		"if __name__ == '__main__':\n" +
             		"    asyncio.run(main())\n");
-            api.logging().logToOutput("Wrote SockyProxyServer to file");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -101,9 +100,11 @@ public final class Utils {
      	try {
              // Command to launch the never-ending process
              String command = "python3";
-
+             
+             url = url.replaceFirst("https", "wss");
+             url = url.replaceFirst("http", "ws");
              // Create the process builder
-             ProcessBuilder pb = new ProcessBuilder(command, "sockyProxyServer.py", "http://localhost", port);
+             ProcessBuilder pb = new ProcessBuilder(command, "sockyProxyServer.py", url, port);
 
              // Redirect the error stream to the standard output
              pb.redirectErrorStream(true);
@@ -121,8 +122,6 @@ public final class Utils {
                  }
 
                  // Perform any cleanup or handling after process termination
-
-                 api.logging().logToOutput("Process terminated.");
              });
              terminationThread.start();
 
@@ -151,14 +150,16 @@ public final class Utils {
      
  }
 
- public final static void LaunchProxy(String port, String url) {
+ public final static void LaunchProxy(MontoyaApi api, String port, String url) {
 
 	 	// check if proxy server on disk
 	    if (!Utils.fileExist("sockyProxyServer.py")) {
-	    	api.logging().logToOutput("sockyProxyServer not on disk");
 	    	Utils.write2file();
 	    }
+	    api.logging().logToOutput("Websocket Proxy Server Started on port (" + port + ") and is redirecting to " + url);
 	    ProcessLauncher.Launch(api,port,url);	            
 	 }
+ 
+
 
 }
