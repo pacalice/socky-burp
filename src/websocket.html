@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>WebSocket Echo Test</title>
+        <script>
+            window.onload = function() {
+                var ws;
+
+                var btn = document.getElementById('sendBtn');
+                var input = document.getElementById('messageInput');
+                var display = document.getElementById('messageDisplay');
+
+                btn.onclick = function() {
+                    ws = new WebSocket('ws://172.16.204.133:8080');
+
+                    ws.onopen = function() {
+                        ws.send(input.value);
+                    };
+
+                    ws.onmessage = function(message) {
+                        display.textContent += message.data + '\n';
+                    };
+
+                    ws.onclose = function() {
+                        console.log('Connection closed');
+                    };
+                };
+            };
+        </script>
+    </head>
+    <body>
+        <textarea id="messageInput"></textarea>
+        <button id="sendBtn">Send</button>
+        <pre id="messageDisplay"></pre>
+    </body>
+</html>
